@@ -186,7 +186,7 @@ if (current.dialect.supports.transactions) {
             return t.commit();
           });
         })
-      ).to.be.rejectedWith('Error: Transaction cannot be committed because it has been finished with state: commit');
+      ).to.be.rejectedWith('Transaction cannot be committed because it has been finished with state: commit');
     });
 
     it('does not allow commits after rollback', function() {
@@ -195,7 +195,7 @@ if (current.dialect.supports.transactions) {
         return t.rollback().then(() => {
           return t.commit();
         });
-      })).to.be.rejectedWith('Error: Transaction cannot be committed because it has been finished with state: rollback');
+      })).to.be.rejectedWith('Transaction cannot be committed because it has been finished with state: rollback');
     });
 
     it('does not allow rollbacks after commit', function() {
@@ -204,7 +204,7 @@ if (current.dialect.supports.transactions) {
         return t.commit().then(() => {
           return t.rollback();
         });
-      })).to.be.rejectedWith('Error: Transaction cannot be rolled back because it has been finished with state: commit');
+      })).to.be.rejectedWith('Transaction cannot be rolled back because it has been finished with state: commit');
     });
 
     it('does not allow rollbacks after rollback', function() {
@@ -213,7 +213,7 @@ if (current.dialect.supports.transactions) {
         return t.rollback().then(() => {
           return t.rollback();
         });
-      })).to.be.rejectedWith('Error: Transaction cannot be rolled back because it has been finished with state: rollback');
+      })).to.be.rejectedWith('Transaction cannot be rolled back because it has been finished with state: rollback');
     });
 
     it('works even if a transaction: null option is passed', function() {
@@ -258,11 +258,11 @@ if (current.dialect.supports.transactions) {
         let persistentTransaction;
 
         return sequelize.transaction().then(t => {
-          return sequelize.sync({ transaction:t }).then(( ) => {
+          return sequelize.sync({ transaction: t }).then(( ) => {
             return t;
           });
         }).then(t => {
-          return User.create({}, {transaction:t}).then(( ) => {
+          return User.create({}, {transaction: t}).then(( ) => {
             return t.commit();
           });
         }).then(() => {
@@ -312,7 +312,7 @@ if (current.dialect.supports.transactions) {
           return User.sync({ force: true }).then(() => {
             const newTransactionFunc = function() {
               return sequelize.transaction({type: Support.Sequelize.Transaction.TYPES.EXCLUSIVE}).then(t => {
-                return User.create({}, {transaction:t}).then(( ) => {
+                return User.create({}, {transaction: t}).then(( ) => {
                   return t.commit();
                 });
               });
@@ -334,7 +334,7 @@ if (current.dialect.supports.transactions) {
               return sequelize.transaction({type: Support.Sequelize.Transaction.TYPES.EXCLUSIVE, retry: {match: ['NO_MATCH']}}).then(t => {
               // introduce delay to force the busy state race condition to fail
                 return Promise.delay(1000).then(() => {
-                  return User.create({id: null, username: 'test ' + t.id}, {transaction:t}).then(() => {
+                  return User.create({id: null, username: 'test ' + t.id}, {transaction: t}).then(() => {
                     return t.commit();
                   });
                 });
@@ -417,34 +417,34 @@ if (current.dialect.supports.transactions) {
               Task.create({ title: 'Get rich', active: false}),
               (john, task1) => {
                 return john.setTasks([task1]);
-              }).then(() => {
-              return self.sequelize.transaction(t1 => {
+              })
+              .then(() => {
+                return self.sequelize.transaction(t1 => {
 
-                if (current.dialect.supports.lockOuterJoinFailure) {
+                  if (current.dialect.supports.lockOuterJoinFailure) {
 
-                  return expect(User.find({
-                    where: {
-                      username: 'John'
-                    },
-                    include: [Task],
-                    lock: t1.LOCK.UPDATE,
-                    transaction: t1
-                  })).to.be.rejectedWith('FOR UPDATE cannot be applied to the nullable side of an outer join');
+                    return expect(User.find({
+                      where: {
+                        username: 'John'
+                      },
+                      include: [Task],
+                      lock: t1.LOCK.UPDATE,
+                      transaction: t1
+                    })).to.be.rejectedWith('FOR UPDATE cannot be applied to the nullable side of an outer join');
 
-                } else {
+                  } else {
 
-                  return User.find({
-                    where: {
-                      username: 'John'
-                    },
-                    include: [Task],
-                    lock: t1.LOCK.UPDATE,
-                    transaction: t1
-                  });
-
-                }
+                    return User.find({
+                      where: {
+                        username: 'John'
+                      },
+                      include: [Task],
+                      lock: t1.LOCK.UPDATE,
+                      transaction: t1
+                    });
+                  }
+                });
               });
-            });
           });
         });
 
@@ -464,37 +464,38 @@ if (current.dialect.supports.transactions) {
                 Task.create({ title: 'Die trying', active: false}),
                 (john, task1) => {
                   return john.setTasks([task1]);
-                }).then(() => {
-                return self.sequelize.transaction(t1 => {
-                  return User.find({
-                    where: {
-                      username: 'John'
-                    },
-                    include: [Task],
-                    lock: {
-                      level: t1.LOCK.UPDATE,
-                      of: User
-                    },
-                    transaction: t1
-                  }).then(t1John => {
-                  // should not be blocked by the lock of the other transaction
-                    return self.sequelize.transaction(t2 => {
-                      return Task.update({
-                        active: true
-                      }, {
-                        where: {
-                          active: false
-                        },
-                        transaction: t2
-                      });
-                    }).then(() => {
-                      return t1John.save({
-                        transaction: t1
+                })
+                .then(() => {
+                  return self.sequelize.transaction(t1 => {
+                    return User.find({
+                      where: {
+                        username: 'John'
+                      },
+                      include: [Task],
+                      lock: {
+                        level: t1.LOCK.UPDATE,
+                        of: User
+                      },
+                      transaction: t1
+                    }).then(t1John => {
+                    // should not be blocked by the lock of the other transaction
+                      return self.sequelize.transaction(t2 => {
+                        return Task.update({
+                          active: true
+                        }, {
+                          where: {
+                            active: false
+                          },
+                          transaction: t2
+                        });
+                      }).then(() => {
+                        return t1John.save({
+                          transaction: t1
+                        });
                       });
                     });
                   });
                 });
-              });
             });
           });
         }

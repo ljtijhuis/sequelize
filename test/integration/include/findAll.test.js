@@ -1731,32 +1731,32 @@ describe(Support.getTestDialectTeaser('Include'), () => {
     it('should work on a nested set of required 1:1 relations', function() {
       const Person = this.sequelize.define('Person', {
         name: {
-          type          : Sequelize.STRING,
-          allowNull     : false
+          type: Sequelize.STRING,
+          allowNull: false
         }
       });
 
       const UserPerson = this.sequelize.define('UserPerson', {
         PersonId: {
-          type          : Sequelize.INTEGER,
-          primaryKey    : true
+          type: Sequelize.INTEGER,
+          primaryKey: true
         },
 
         rank: {
-          type          : Sequelize.STRING
+          type: Sequelize.STRING
         }
       });
 
       const User = this.sequelize.define('User', {
         UserPersonId: {
-          type          : Sequelize.INTEGER,
-          primaryKey    : true
+          type: Sequelize.INTEGER,
+          primaryKey: true
         },
 
         login: {
-          type          : Sequelize.STRING,
-          unique        : true,
-          allowNull     : false
+          type: Sequelize.STRING,
+          unique: true,
+          allowNull: false
         }
       });
 
@@ -1790,17 +1790,17 @@ describe(Support.getTestDialectTeaser('Include'), () => {
 
       return this.sequelize.sync({force: true}).then(() => {
         return Person.findAll({
-          offset        : 0,
-          limit         : 20,
-          attributes    : ['id', 'name'],
-          include       : [{
-            model         : UserPerson,
-            required      : true,
-            attributes    : ['rank'],
-            include       : [{
-              model         : User,
-              required      : true,
-              attributes    : ['login']
+          offset: 0,
+          limit: 20,
+          attributes: ['id', 'name'],
+          include: [{
+            model: UserPerson,
+            required: true,
+            attributes: ['rank'],
+            include: [{
+              model: User,
+              required: true,
+              attributes: ['login']
             }]
           }]
         });
@@ -2052,6 +2052,50 @@ describe(Support.getTestDialectTeaser('Include'), () => {
           expect(posts[0].Entity.tags[0].EntityTag.tag_name).to.equal('bob');
           expect(posts[0].Entity.tags[0].EntityTag.entity_id).to.equal(posts[0].post_id);
         });
+    });
+
+    it('should be able to generate a correct request with inner and outer join', function() {
+      const Customer = this.sequelize.define('customer', {
+        name: DataTypes.STRING
+      });
+
+      const ShippingAddress = this.sequelize.define('shippingAddress', {
+        address: DataTypes.STRING,
+        verified: DataTypes.BOOLEAN
+      });
+
+      const Order = this.sequelize.define('purchaseOrder', {
+        description: DataTypes.TEXT
+      });
+
+      const Shipment = this.sequelize.define('shipment', {
+        trackingNumber: DataTypes.STRING
+      });
+
+      Customer.hasMany(ShippingAddress);
+      ShippingAddress.belongsTo(Customer);
+
+      Customer.hasMany(Order);
+      Order.belongsTo(Customer);
+
+      Shipment.belongsTo(Order);
+      Order.hasOne(Shipment);
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return Shipment.findOne({
+          include: [{
+            model: Order,
+            required: true,
+            include: [{
+              model: Customer,
+              include: [{
+                model: ShippingAddress,
+                where: { verified: true }
+              }]
+            }]
+          }]
+        });
+      });
     });
   });
 });
