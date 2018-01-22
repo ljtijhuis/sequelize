@@ -3,6 +3,7 @@
 const chai = require('chai'),
   Sequelize = require('../../../index'),
   Promise = Sequelize.Promise,
+  moment = require('moment'),
   expect = chai.expect,
   Support = require(__dirname + '/../support'),
   DataTypes = require(__dirname + '/../../../lib/data-types'),
@@ -249,6 +250,95 @@ describe(Support.getTestDialectTeaser('Model'), () => {
           });
         });
 
+        it('should be possible to query dates with array operators', function() {
+          const now = moment().milliseconds(0).toDate();
+          const before = moment().milliseconds(0).subtract(1, 'day').toDate();
+          const after = moment().milliseconds(0).add(1, 'day').toDate();
+          return Promise.join(
+            this.Event.create({
+              json: {
+                user: 'Homer',
+                lastLogin: now
+              }
+            })
+          ).then(() => {
+            return this.Event.findAll({
+              where: {
+                json: {
+                  lastLogin: now
+                }
+              }
+            }).then(events => {
+              const event = events[0];
+
+              expect(events.length).to.equal(1);
+              expect(event.get('json')).to.eql({
+                user: 'Homer',
+                lastLogin: now.toISOString()
+              });
+            });
+          }).then(() => {
+            return this.Event.findAll({
+              where: {
+                json: {
+                  lastLogin: {$between: [before, after]}
+                }
+              }
+            }).then(events => {
+              const event = events[0];
+
+              expect(events.length).to.equal(1);
+              expect(event.get('json')).to.eql({
+                user: 'Homer',
+                lastLogin: now.toISOString()
+              });
+            });
+          });
+        });
+
+        it('should be possible to query a boolean with array operators', function() {
+          return Promise.join(
+            this.Event.create({
+              json: {
+                user: 'Homer',
+                active: true
+              }
+            })
+          ).then(() => {
+            return this.Event.findAll({
+              where: {
+                json: {
+                  active: true
+                }
+              }
+            }).then(events => {
+              const event = events[0];
+
+              expect(events.length).to.equal(1);
+              expect(event.get('json')).to.eql({
+                user: 'Homer',
+                active: true
+              });
+            });
+          }).then(() => {
+            return this.Event.findAll({
+              where: {
+                json: {
+                  active: {$in: [true, false]}
+                }
+              }
+            }).then(events => {
+              const event = events[0];
+
+              expect(events.length).to.equal(1);
+              expect(event.get('json')).to.eql({
+                user: 'Homer',
+                active: true
+              });
+            });
+          });
+        });
+
         it('should be possible to query a nested integer value', function() {
           return Promise.join(
             this.Event.create({
@@ -328,6 +418,60 @@ describe(Support.getTestDialectTeaser('Model'), () => {
                   last: 'Simpson'
                 },
                 employment: null
+              });
+            });
+          });
+        });
+
+        it('should be possible to query for nested fields with hyphens/dashes, #8718', function() {
+          return Promise.join(
+            this.Event.create({
+              data: {
+                name: {
+                  first: 'Homer',
+                  last: 'Simpson'
+                },
+                status_report: {
+                  'red-indicator': {
+                    'level$$level': true
+                  }
+                },
+                employment: 'Nuclear Safety Inspector'
+              }
+            }),
+            this.Event.create({
+              data: {
+                name: {
+                  first: 'Marge',
+                  last: 'Simpson'
+                },
+                employment: null
+              }
+            })
+          ).then(() => {
+            return this.Event.findAll({
+              where: {
+                data: {
+                  status_report: {
+                    'red-indicator': {
+                      'level$$level': true
+                    }
+                  }
+                }
+              }
+            }).then(events => {
+              expect(events.length).to.equal(1);
+              expect(events[0].get('data')).to.eql({
+                name: {
+                  first: 'Homer',
+                  last: 'Simpson'
+                },
+                status_report: {
+                  'red-indicator': {
+                    'level$$level': true
+                  }
+                },
+                employment: 'Nuclear Safety Inspector'
               });
             });
           });
